@@ -1,0 +1,3 @@
+setup.sh
+test-entrypoint.sh
+httpd-foreground
