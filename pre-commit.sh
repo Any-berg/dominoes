@@ -32,8 +32,8 @@ while IFS= read -r file; do
     if ! [[ $staged_files =~ "D"[[:space:]]"$file" ]]; then
       tag="pre-commit:$(date +%s)$i"
       echo "Building '$file' as '$tag'"
-      [[ $file == *"/"* ]] && dir="${file%%/*}" || dir="."
-      docker build $dir -f $file -t $tag > /dev/null || RESULT=1
+      [[ $file == *"/"* ]] && path="${file%/*}" || path="."
+      docker build $path -f $file -t $tag > /dev/null || RESULT=1
 
       # run in-container tests if any are provided (and if the image was built)
       tests="${file%${file##*/}}test-entrypoint.sh"
