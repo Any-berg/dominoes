@@ -35,9 +35,9 @@ while IFS= read -r file; do
       [[ $file == *"/"* ]] && dir="${file%%/*}" || dir="."
       docker build $dir -f $file -t $tag > /dev/null || RESULT=1
 
-      # run in-container tests (if any are provided for this Dockerfile)
+      # run in-container tests if any are provided (and if the image was built)
       tests="${file%${file##*/}}test-entrypoint.sh"
-      if [ -e $tests ]; then
+      if [ -e $tests ] && ! [ -z "$(docker images $tag --format _)" ]; then
         echo "Running '$tests' in container"
         docker run --cidfile=$cid \
                    --volume=$(pwd)/$tests:/${tests##*/} \
@@ -48,7 +48,7 @@ while IFS= read -r file; do
 	rm $cid
       fi
 
-      # remove built image and increment the index
+      # remove image (if it was built) and increment the index
       docker rmi $tag > /dev/null 2>&1      
       i=$((i+1))
     fi
