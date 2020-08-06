@@ -16,6 +16,7 @@ echo "Stashing away untracked and unstaged files"
 git stash push --all --keep-index > /dev/null
 
 cid=".cid"
+errors=0
 
 tracked_or_staged_files=$(git ls-files)
 i=0
@@ -25,7 +26,7 @@ while IFS= read -r file; do
     # lint only the Dockerfiles that are staged to be either added or modified
     if [[ $staged_files =~ [AM][[:space:]]"$file" ]]; then
       echo "Linting '$file'"
-      docker run --rm -i hadolint/hadolint < $file || RESULT=1
+      docker run --rm -i hadolint/hadolint < $file || ((errors=errors+1))
     fi
 
     # build all Dockerfiles that are not staged to be deleted
@@ -33,15 +34,15 @@ while IFS= read -r file; do
       tag="pre-commit:$(date +%s)$i"
       echo "Building '$file' as '$tag'"
       [[ $file == *"/"* ]] && path="${file%/*}" || path="."
-      docker build $path -f $file -t $tag > /dev/null || RESULT=1
+      docker build $path -f $file -t $tag > /dev/null || ((errors=errors+1))
 
       # run in-container tests if any are provided (and if the image was built)
       tests="${file%${file##*/}}test-entrypoint.sh"
       if [ -e $tests ] && ! [ -z "$(docker images $tag --format _)" ]; then
         echo "Running '$tests' in container"
-        docker run --cidfile=$cid \
-                   --volume=$(pwd)/$tests:/${tests##*/} \
-                   --entrypoint /${tests##*/} $tag > /dev/null || RESULT=1
+        docker run --volume=$(pwd)/$tests:/${tests##*/} \
+                   --entrypoint /${tests##*/} \
+                   --cidfile=$cid $tag > /dev/null || ((errors=errors+1))
 
         # remove container and corresponding cid file
         docker rm $(cat $cid) > /dev/null
@@ -72,7 +73,7 @@ if ! [ -z "$unmerged_files" ]; then
   git stash drop > /dev/null 
 fi
 
-[[ $RESULT -ne 0 ]] && { echo "Aborting commit as invalid: see above"; exit 1; }
+[[ $errors -ne 0 ]] && { echo "Aborting commit as invalid: see above"; exit 1; }
 exit 0
 
 # https://codeinthehole.com/tips/tips-for-using-a-git-pre-commit-hook/
