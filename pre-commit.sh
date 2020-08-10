@@ -12,8 +12,14 @@
 staged_files=$(git diff --cached --name-status)
 [ -z "$staged_files" ] && exit 0
 
+grep -lRE "^[<=>]{7}" . && {
+  echo "Aborting until merge conflicts in above files are manually resolved"
+  exit 1
+}
+
 echo "Stashing away untracked and unstaged files"
 git stash push --all --keep-index > /dev/null
+[ $? -eq 0 ] || exit 1
 
 cid=".cid"
 errors=0
@@ -72,6 +78,7 @@ if ! [ -z "$unmerged_files" ]; then
   done <<< "$unmerged_files"
   git stash drop > /dev/null 
 fi
+grep -RE "^[<=>]{7}" . > /dev/null && { echo "ERROR: botched merge"; exit 1; }
 
 [[ $errors -ne 0 ]] && { echo "Aborting commit as invalid: see above"; exit 1; }
 exit 0
