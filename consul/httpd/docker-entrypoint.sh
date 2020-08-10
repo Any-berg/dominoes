@@ -5,9 +5,16 @@
 consul-entrypoint.sh "$@" &
 consul_pid=$!
 
-# setup Apache HTTP Server to eliminate warning & distinguish between instances
-sed -Ei 's/#(ServerName) .*/\1 localhost/g' /usr/local/apache2/conf/httpd.conf
+# setup Apache HTTP Server to identify instances & hide warning about ServerName
 sed -i "s/It works!/$HOSTNAME/g" /usr/local/apache2/htdocs/index.html
+conf="/usr/local/apache2/conf/httpd.conf"
+sed -Ei 's/#(ServerName) .*/\1 localhost/g' $conf
+
+# redirect Apache HTTP Server logging back to stdout and stderr through symlinks
+sed -Ei "s|^(ErrorLog )/proc/.*|\1/usr/local/apache2/logs/error.log|g" $conf
+sed -Ei "s|^(\s+CustomLog ).*|\1/usr/local/apache2/logs/access.log combined|g" $conf
+ln -sf /proc/$$/fd/1 /usr/local/apache2/logs/access.log
+ln -sf /proc/$$/fd/2 /usr/local/apache2/logs/error.log
 
 # start Apache HTTP Server as daemon 
 rm -f /usr/local/apache2/logs/httpd.pid
@@ -24,8 +31,12 @@ done
 while [ -d "/proc/$httpd_pid" ]; do
     [ -d "/proc/$consul_pid" ] || apachectl -k graceful-stop
     sleep 5
-done # stop Docker container gracefully
+done
+
+# ensure that Consul was really shut down before Apache HTTP Server
+[[ ! -d "/proc/$consul_pid" ]] || exit 1
 
 # https://docs.docker.com/config/containers/multi-service_container/
 # https://stackoverflow.com/questions/1908610/how-to-get-process-id-of-background-process
 # https://askubuntu.com/questions/256013/apache-error-could-not-reliably-determine-the-servers-fully-qualified-domain-n
+# https://stackoverflow.com/questions/40263585/redirecting-apache-logs-to-stdout

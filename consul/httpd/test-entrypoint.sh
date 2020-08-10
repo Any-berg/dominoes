@@ -6,6 +6,12 @@ error() {
   exit $status
 }
 
+# log only the errors that cause Apache HTTP Server to malfunction; did not help
+#sed -Ei 's/^(LogLevel) .*/\1 error/g' /usr/local/apache2/conf/httpd.conf
+
+# disable Apache error logging entirely, as it logs everything except errors
+sed -Ei "s|^(ErrorLog )(/proc/.*)|\1 \2|g" /usr/local/apache2/conf/httpd.conf
+
 # set 30s timebox for testing (to avoid getting stuck in an infinite while loop)
 timeout 30 /usr/local/bin/docker-entrypoint.sh agent -dev -client 0.0.0.0 &
 status=$?
@@ -36,11 +42,30 @@ status=$?
 # fail if any httpd process outlives the container (i.e. has to be terminated)
 ps -o comm | grep httpd > /dev/null && error "httpd is not shut down gracefully"
 
-# exit without errors (above grep should fail and its status mustn't be passed on) 
-exit 0
+# set 30s timebox for testing (to avoid getting stuck in an infinite while loop)
+timeout 40 /usr/local/bin/docker-entrypoint.sh agent -dev -client 0.0.0.0 &
+status=$?
+[ $status -ne 0 ] && error "entrypoint fails to start (2)" $status
+entrypoint_pid=$!
 
->>>>>>> Stashed changes
+# fail if Apache HTTP Server PID file is not created or does not match a process
+while true; do
+  sleep 1
+  httpd_pid=$(cat /usr/local/apache2/logs/httpd.pid 2> /dev/null)
+  [[ ! -z "$httpd_pid" ]] && kill -0 $httpd_pid && break
+  kill -0 $entrypoint_pid || error "httpd fails to start (2)"
+done
+
+# give actual entrypoint some time to spot Apache HTTP Server before stopping it
+sleep 2
+apachectl -k graceful-stop
+
+wait $entrypoint_pid
+status=$?
+[ $status -ne 0 ] || error "Consul is not shut down and container is OK with it"
+
 # https://unix.stackexchange.com/questions/185283/how-do-i-wait-for-a-file-in-the-shell-script
 # https://phoenixnap.com/kb/docker-run-override-entrypoint
 # https://stackoverflow.com/questions/58298774/standard-init-linux-go211-exec-user-process-caused-exec-format-error
 # https://docs.github.com/en/actions/creating-actions/creating-a-docker-container-action
+# https://serverfault.com/questions/607873/apache-is-ok-but-what-is-this-in-error-log-mpm-preforknotice
