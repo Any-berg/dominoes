@@ -5,6 +5,9 @@
 consul-entrypoint.sh "$@" &
 consul_pid=$!
 
+# prevent exit code 143 and let SIGTERM pass to Consul
+trap '' SIGTERM
+
 # setup Apache HTTP Server to identify instances & hide warning about ServerName
 sed -i "s/It works!/$HOSTNAME/g" /usr/local/apache2/htdocs/index.html
 conf="/usr/local/apache2/conf/httpd.conf"
@@ -30,7 +33,7 @@ done
 # while Apache HTTP Server is running, check on Consul and stop Apache if needed
 while [ -d "/proc/$httpd_pid" ]; do
     [ -d "/proc/$consul_pid" ] || apachectl -k graceful-stop
-    sleep 5
+    sleep 2
 done
 
 # ensure that Consul was really shut down before Apache HTTP Server
@@ -40,3 +43,5 @@ done
 # https://stackoverflow.com/questions/1908610/how-to-get-process-id-of-background-process
 # https://askubuntu.com/questions/256013/apache-error-could-not-reliably-determine-the-servers-fully-qualified-domain-n
 # https://stackoverflow.com/questions/40263585/redirecting-apache-logs-to-stdout
+# https://hackernoon.com/my-process-became-pid-1-and-now-signals-behave-strangely-b05c52cc551c
+# https://medium.com/better-programming/understanding-docker-container-exit-codes-5ee79a1d58f6

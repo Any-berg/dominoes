@@ -29,7 +29,8 @@ sed -Ei '' 's/gpg --keyserver [^\]*/n=0; until [ "\$n" -ge 5 ]; do &break; n=\$(
 #perl -0777 -i -pe 's|(COPY \S+).*|\1 consul-entrypoint.sh /usr/local/bin/\
 #ENTRYPOINT ["docker-entrypoint.sh"]\
 #|gms' Dockerfile
-sed -Ei '' 's|(COPY [^ ]+).*|\1 consul-entrypoint.sh /usr/local/bin/|g' Dockerfile
+sed -Ei '' 's|(COPY [^ ]+).*|STOPSIGNAL SIGTERM\
+\1 consul-entrypoint.sh /usr/local/bin/|g' Dockerfile
 
 #ADD supervisord.conf /etc/\
 #ENTRYPOINT ["supervisord", "--nodaemon", "--configuration", "/etc/supervisord.conf"]|gms' Dockerfile

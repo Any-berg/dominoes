@@ -29,12 +29,8 @@ done
 # fail if Apache HTTP Server is not behind port 80
 curl localhost:80 > /dev/null 2>&1 || error "httpd does not listen on port 80"
 
-# fail if there is no Consul process to shut down gracefully (race condition?)
-#consul_pid=$(ps -o pid,user | grep consul$ | xargs | cut -d ' ' -f 1)
-consul leave || error "consul fails"
-#kill -SIGUSR2 $entrypoint_pid
-
-# fail if container exits with a status code other than 0
+# fail if the container does not shut down gracefully after receiving SIGTERM
+kill -SIGTERM $entrypoint_pid
 wait $entrypoint_pid
 status=$?
 [ $status -ne 0 ] && error "container does not shut down" $status
