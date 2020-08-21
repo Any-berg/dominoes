@@ -12,8 +12,9 @@ error() {
 # disable Apache error logging entirely, as it logs everything except errors
 sed -Ei "s|^(ErrorLog )(/proc/.*)|\1 \2|g" /usr/local/apache2/conf/httpd.conf
 
-# set 30s timebox for testing (to avoid getting stuck in an infinite while loop)
-timeout 30 /usr/local/bin/docker-entrypoint.sh agent -dev -client 0.0.0.0 &
+# make sure to kill the test if it doesn't finish within the allotted time 
+timeout -s SIGKILL 30 \
+  /usr/local/bin/docker-entrypoint.sh agent -dev -client 0.0.0.0 &
 status=$?
 [ $status -ne 0 ] && error "entrypoint fails to start" $status
 entrypoint_pid=$!
@@ -38,8 +39,9 @@ status=$?
 # fail if any httpd process outlives the container (i.e. has to be terminated)
 ps -o comm | grep httpd > /dev/null && error "httpd is not shut down gracefully"
 
-# set 30s timebox for testing (to avoid getting stuck in an infinite while loop)
-timeout 40 /usr/local/bin/docker-entrypoint.sh agent -dev -client 0.0.0.0 &
+# make sure to kill the test if it doesn't finish within the allotted time
+timeout -s SIGKILL 40 \
+  /usr/local/bin/docker-entrypoint.sh agent -dev -client 0.0.0.0 &
 status=$?
 [ $status -ne 0 ] && error "entrypoint fails to start (2)" $status
 entrypoint_pid=$!
@@ -65,3 +67,4 @@ status=$?
 # https://stackoverflow.com/questions/58298774/standard-init-linux-go211-exec-user-process-caused-exec-format-error
 # https://docs.github.com/en/actions/creating-actions/creating-a-docker-container-action
 # https://serverfault.com/questions/607873/apache-is-ok-but-what-is-this-in-error-log-mpm-preforknotice
+# https://www.howtogeek.com/423286/how-to-use-the-timeout-command-on-linux/
