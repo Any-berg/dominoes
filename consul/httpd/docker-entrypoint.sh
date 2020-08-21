@@ -1,12 +1,12 @@
-#!/usr/bin/dumb-init /bin/sh
+#!/bin/sh
 #set -e
 
 # start Consul in the background (agent -retry-join lb -client=0.0.0.0)
 consul-entrypoint.sh "$@" &
 consul_pid=$!
 
-# prevent exit code 143 and let SIGTERM pass to Consul
-trap '' SIGTERM
+# handle SIGTERM in parametrized manner since it doesn't pass to Consul anymore
+trap "${SHUTDOWN_TRIGGER:-consul leave}" SIGTERM
 
 # setup Apache HTTP Server to identify instances & hide warning about ServerName
 sed -i "s/It works!/$HOSTNAME/g" /usr/local/apache2/htdocs/index.html
