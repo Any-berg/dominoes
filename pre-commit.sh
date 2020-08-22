@@ -1,9 +1,9 @@
 #!/bin/sh
 # 
 # This pre-commit hook verifies ALL tracked Dockerfiles in the repository by
-#  1) linting them (but only if they are staged to be either added or modified)
-#  2) always building images of them because file references can get broken, and
-#  3) optionally running in-container tests on them via entrypoint substitution.
+#  1) linting them if they are staged to be either added or modified,
+#  2) building the images if there are possible build context changes, and
+#  3) running in-container tests if any are specified - and if image was built.
 #
 # Untracked and unstaged files are stashed away during verification in order
 # to abort incomplete commits (like a Dockerfile without the needed entrypoint);
@@ -35,8 +35,9 @@ while IFS= read -r file; do
       docker run --rm -i hadolint/hadolint < $file || ((errors=errors+1))
     fi
 
-    # build all Dockerfiles that are not staged to be deleted
-    if ! [[ $staged_files =~ "D"[[:space:]]"$file" ]]; then
+    # build only undeleted Dockerfiles that have possible build context changes
+    if ! [[ $staged_files =~ "D"[[:space:]]"$file" ]] && 
+        [[ $staged_files =~ [[:space:]]"${file%/*}/" ]]; then
       tag="pre-commit:$(date +%s)$i"
       echo "Building '$file' as '$tag'"
       [[ $file == *"/"* ]] && path="${file%/*}" || path="."
