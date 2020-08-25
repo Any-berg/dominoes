@@ -21,6 +21,7 @@ echo "Stashing away untracked and unstaged files"
 git stash push --all --keep-index > /dev/null
 [ $? -eq 0 ] || exit 1
 
+context=$(git config dockerfile.buildcontext) || unset context
 cid=".cid"
 errors=0
 
@@ -37,7 +38,7 @@ while IFS= read -r file; do
 
     # build only undeleted Dockerfiles that have possible build context changes
     if ! [[ $staged_files =~ "D"[[:space:]]"$file" ]] && 
-        [[ $staged_files =~ [[:space:]]"${file%/*}/" ]]; then
+        [[ $staged_files =~ [[:space:]]"${context-${file%${file##*/}}}" ]]; then
       tag="pre-commit:$(date +%s)$i"
       echo "Building '$file' as '$tag'"
       [[ $file == *"/"* ]] && path="${file%/*}" || path="."
