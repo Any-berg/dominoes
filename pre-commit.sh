@@ -12,7 +12,7 @@
 staged_files=$(git diff --cached --name-status)
 [ -z "$staged_files" ] && exit 0
 
-grep -lRE "^[<=>]{7}" . && {
+grep -lRE "^([<=>])\1{6}" . && {
   echo "Aborting until merge conflicts in above files are manually resolved"
   exit 1
 }
@@ -72,7 +72,7 @@ if ! [ -z "$unmerged_files" ]; then
   echo "Resolving conflicts caused by unstaged changes in staged files"
   while IFS= read -r file; do
     # stage original file (ours) and overlay extracted unstaged changes (theirs)
-    perl -0777 -pe 's/^<{7}[^\n]+\n(.*?)\n={7}\n(.*?)\n>{7}[^\n]+/\2/gsm' \
+    perl -0777 -pe 's/^<{7}[^\n]+\n(.*?)^={7}\n(.*?)^>{7}[^\n]+\n?/\2/gsm' \
         $file > $file.theirs
     git checkout --ours $file 2> /dev/null
     git add $file
@@ -80,7 +80,10 @@ if ! [ -z "$unmerged_files" ]; then
   done <<< "$unmerged_files"
   git stash drop > /dev/null 
 fi
-grep -RE "^[<=>]{7}" . > /dev/null && { echo "ERROR: botched merge"; exit 1; }
+grep -RE "^([<=>])\1{6}" . > /dev/null && {
+  echo "ERROR: botched merge"
+  exit 1
+}
 
 [[ $errors -ne 0 ]] && { echo "Aborting commit as invalid: see above"; exit 1; }
 exit 0
@@ -90,3 +93,4 @@ exit 0
 # https://stackoverflow.com/questions/43770520/how-to-specify-default-merge-strategy-on-git-stash-pop
 # https://stackoverflow.com/questions/2412450/git-pre-commit-hook-changed-added-files
 # https://medium.com/sweetmeat/remove-unwanted-unstaged-changes-in-tracked-files-from-a-git-repository-d41c4f64a251
+# https://stackoverflow.com/questions/644714/what-regex-can-match-sequences-of-the-same-character
