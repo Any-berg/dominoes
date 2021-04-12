@@ -15,7 +15,7 @@ context=$(git config dockerfile.buildcontext) || unset context
 cid=".cid"
 errors=0
 
-all_files=$(find . -path ./.git -prune -o ! -path . -print | sed "s|^\./||")
+unignored_files=$(git ls-files -so --exclude-standard | sed $'s/.*\t//g')
 i=0
 while IFS= read -r file; do
   if [[ ${file##*/} == "Dockerfile" ]]; then
@@ -54,7 +54,7 @@ while IFS= read -r file; do
       i=$((i+1))
     fi
   fi
-done <<< "$all_files"
+done <<< "$unignored_files"
 
 exit $errors
 
