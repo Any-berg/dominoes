@@ -62,6 +62,8 @@ wait $entrypoint_pid
 status=$?
 [ $status -ne 0 ] || error "Consul is not shut down and container is OK with it"
 
+exit 0
+
 # https://unix.stackexchange.com/questions/185283/how-do-i-wait-for-a-file-in-the-shell-script
 # https://phoenixnap.com/kb/docker-run-override-entrypoint
 # https://stackoverflow.com/questions/58298774/standard-init-linux-go211-exec-user-process-caused-exec-format-error
